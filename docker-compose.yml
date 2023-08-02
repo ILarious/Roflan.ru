@@ -1,0 +1,55 @@
+version: '3.7'
+
+services:
+  frontend:
+    platform: linux/amd64
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: project_frontend
+    volumes:
+      - ./frontend:/frontend
+    ports:
+      - 3000:3000
+    
+  main_pg_db:
+    platform: linux/amd64
+    build:
+      context: ./Postgres
+      dockerfile: Dockerfile
+    ports:
+      - ${POSTGRES_MAIN_DB_PORT}:5432
+    restart: always
+    volumes:
+      - project_pg_data:/var/lib/postgresql/data
+    hostname: main_pg_db
+    container_name: ${POSTGRES_MAIN_DB_HOST_NAME}
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_MAIN_DB_PASSWORD}
+    env_file:
+      - ./.env
+
+  project_backend:
+    platform: linux/amd64
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - PORT=${BACKEND_APP_PORT}
+    container_name: project_backend
+    volumes:
+      - ./backend:/backend
+    ports:
+      - 8000:8000
+    depends_on:
+      - main_pg_db
+    env_file:
+      - ./.env
+    restart: always
+    command: >
+      sh -c "python /backend/manage.py migrate &&
+             python /backend/manage.py runserver 0.0.0.0:${BACKEND_APP_PORT}"
+
+
+volumes:
+  project_pg_data:
